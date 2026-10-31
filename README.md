@@ -1,70 +1,269 @@
-# System Log Analytics & Anomaly Detection (Backend)
+# System Log Analytics & Anomaly Detection
 
-FastAPI + Pandas/NumPy + scikit-learn + SQL (SQLAlchemy) + MongoDB.
+A Python-based backend application for analyzing system logs, detecting unusual activity, and generating alerts using statistical techniques and machine learning.
 
-## Setup (Python 3.9+ chahiye)
-Project folder ke andar jao (jahan `app/` folder dikhta hai), phir:
+## Overview
 
-**Windows (PowerShell / CMD)**
-```bat
+System Log Analytics & Anomaly Detection helps identify abnormal system behavior by processing log files, analyzing error patterns, detecting anomalies, and generating actionable alerts.
+
+The application provides REST APIs for log uploads, searching, alert management, statistics, and visualization.
+
+## Key Features
+
+- **Log Upload & Processing:** Upload, parse, clean, and store system log files.
+- **Anomaly Detection:** Identify unusual error rates and traffic patterns.
+- **Machine Learning:** Use Isolation Forest to detect abnormal behavior.
+- **Brute-Force Detection:** Identify repeated failed authentication attempts from individual IP addresses.
+- **Alert Management:** Generate, acknowledge, and resolve alerts.
+- **Log Search:** Filter logs by severity, service, IP address, message, and time range.
+- **Data Visualization:** Generate error-trend charts and anomaly-window visualizations.
+- **Duplicate Upload Prevention:** Prevent repeated processing of the same uploaded file using file hashing.
+
+## Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| Python | Backend development |
+| FastAPI | REST API development |
+| Pandas & NumPy | Data processing and analysis |
+| Scikit-learn | Machine learning and anomaly detection |
+| SQLAlchemy | SQL database management |
+| SQLite / MySQL | Structured data storage |
+| MongoDB | Log storage |
+| Matplotlib | Data visualization |
+| Pytest | Testing |
+
+## Project Structure
+
+```text
+system-log-analytics-anomaly-detection/
+│
+├── app/
+│   ├── __init__.py
+│   ├── cleaning.py
+│   ├── config.py
+│   ├── db_sql.py
+│   ├── detector.py
+│   ├── main.py
+│   ├── parser.py
+│   ├── sample_data.py
+│   ├── schemas.py
+│   ├── service.py
+│   └── store.py
+│
+├── data/
+│   └── sample.log
+│
+├── tests/
+│   ├── __init__.py
+│   ├── test_api.py
+│   └── test_core.py
+│
+├── .env.example
+├── .gitignore
+├── README.md
+└── requirements.txt
+```
+
+## Installation & Setup
+
+**Prerequisites:** Python 3.9 or later.
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/igarg6630-design/system-log-analytics-anomaly-detection.git
+
+cd system-log-analytics-anomaly-detection
+```
+
+### 2. Create a Virtual Environment
+
+**Windows (PowerShell):**
+
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
-python -m app.sample_data --hours 6 --out data/sample.log
-python -m uvicorn app.main:app --reload
 ```
-**Mac / Linux**
+
+**Mac / Linux:**
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
 pip install -r requirements.txt
+```
+
+### 4. Generate Sample Logs
+
+```bash
 python -m app.sample_data --hours 6 --out data/sample.log
+```
+
+### 5. Start the Application
+
+```bash
 python -m uvicorn app.main:app --reload
 ```
-(Optional: `.env.example` ko `.env` naam se copy karke settings badlo. Bina .env ke SQLite + local MongoDB defaults chalte hain.)
 
-Swagger UI: http://127.0.0.1:8000/docs
+The backend server will start at:
 
-Demo:
+`http://127.0.0.1:8000`
+
+### 6. Explore API Documentation
+
+Open the following URL in your browser:
+
+`http://127.0.0.1:8000/docs`
+
+FastAPI Swagger UI provides interactive API documentation.
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/logs/upload` | Upload and analyze log files |
+| POST | `/uploads/{id}/analyze` | Re-analyze uploaded logs using updated thresholds |
+| GET | `/uploads` | Retrieve uploaded files |
+| DELETE | `/uploads/{id}` | Delete an uploaded file |
+| GET | `/logs/search` | Search and filter system logs |
+| GET | `/alerts` | Retrieve generated alerts |
+| PATCH | `/alerts/{id}` | Update alert status |
+| GET | `/stats/summary` | Retrieve summary statistics |
+| GET | `/stats/error-trend` | Retrieve error-trend data |
+| GET | `/stats/top-errors` | Retrieve frequently occurring errors |
+| GET | `/charts/error-trend.png` | Generate an error-trend chart |
+
+## Anomaly Detection Techniques
+
+The application uses multiple detection techniques to identify abnormal system activity.
+
+### 1. Rolling Z-Score
+
+- Analyzes errors and traffic on a minute-by-minute basis.
+- Compares current activity against the previous 60 minutes.
+- Uses a minimum-error threshold to reduce false alerts from small changes.
+
+### 2. Isolation Forest
+
+- Uses Scikit-learn's Isolation Forest algorithm.
+- Analyzes multiple features, including error count, total requests, error ratio, unique IP addresses, and services.
+- Requires at least 30 minutes of data.
+
+### 3. Brute-Force Detection
+
+- Monitors repeated failed authentication attempts.
+- Detects 401/403 responses or failed-login messages.
+- Generates detection when an IP address produces at least 20 failed authentication attempts within the configured sliding window.
+
+### 4. Alert Generation
+
+- Combines consecutive anomalous minutes into a single incident.
+- Includes the top affected service and frequently occurring messages.
+- Helps investigate possible application bugs, traffic overload, deployment issues, or security attacks.
+
+## Database Configuration
+
+The application supports SQL databases and MongoDB for data storage.
+
+### MongoDB
+
+Configure the MongoDB connection using the `MONGO_URI` environment variable.
+
+If MongoDB is unavailable, the application falls back to an in-memory log store.
+
+**Note:** Raw logs stored in memory are lost when the application restarts. SQL data, including alerts and minute statistics, remains stored in the SQL database.
+
+### SQLite
+
+SQLite is used by default for structured data storage.
+
+### MySQL (Optional)
+
+To use MySQL, configure the `SQL_URL` environment variable:
+
+```env
+SQL_URL=mysql+pymysql://user:pass@localhost:3306/log_analytics
+```
+
+Create the database before starting the application.
+
+For additional configuration, refer to `.env.example`.
+
+## API Usage Examples
+
+### Upload a Log File
+
 ```bash
 curl -F "file=@data/sample.log" http://127.0.0.1:8000/logs/upload
-curl http://127.0.0.1:8000/alerts
-curl "http://127.0.0.1:8000/logs/search?level=error&q=timeout&limit=5"
-# chart: browser mein http://127.0.0.1:8000/charts/error-trend.png
 ```
 
-## MongoDB / MySQL
-- MongoDB: `MONGO_URI` set karo. Na mile to app **in-memory store** par chalta hai (`/health` mein `log_store` dikhta hai).
-  In-memory mein restart par raw logs jaate hain, SQL data (alerts, minute stats) rehta hai.
-- MySQL: `SQL_URL=mysql+pymysql://user:pass@localhost:3306/log_analytics` (database pehle bana lo).
+### Retrieve Alerts
 
-## Endpoints
-| Method | Path | Kaam |
-|---|---|---|
-| POST | `/logs/upload` | log file upload -> parse, clean, store, detect (same file dobara = duplicate) |
-| POST | `/uploads/{id}/analyze` | naye thresholds se re-detect (`z_threshold`, `window`, `min_errors`, `freq`, `bruteforce_threshold`) |
-| GET | `/uploads`, DELETE `/uploads/{id}` | uploads list / delete |
-| GET | `/logs/search` | filters: level, service, ip, q, start, end, limit, skip |
-| GET | `/alerts` | filters: status, severity, alert_type, since, upload_id |
-| PATCH | `/alerts/{id}` | status: open / acknowledged / resolved |
-| GET | `/stats/summary` `/stats/error-trend` `/stats/top-errors` | dashboard data |
-| GET | `/charts/error-trend.png` | error trend + anomaly windows chart |
-
-## Detection kaise kaam karti hai
-1. **Rolling z-score**: har minute ke errors (aur traffic) ko pichle 60 minutes ke baseline se compare karta hai.
-   `min_errors` guard ki wajah se 2 -> 6 jaise chhote bumps alert nahi bante.
-2. **IsolationForest**: errors, total, error_ratio, unique IPs/services ko saath dekhta hai (30+ minute data chahiye).
-3. **Brute-force**: ek IP se sliding window mein >= 20 failed auth (401/403 ya "failed login").
-4. Lagatar anomalous minutes ek incident/alert mein merge hote hain; alert mein top service + top messages
-   hote hain taaki bug / overload / deployment / attack ka farq samajh aaye.
-
-## Design notes
-- Duplicate lines **drop nahi hoti**: same second mein identical errors hi spike ka signal hain. Double upload ko file hash rokta hai.
-- Log format: `YYYY-MM-DD HH:MM:SS [LEVEL] service: message ip=... status=...` (parser.py mein regex badal sakte ho).
-- Limitation: rolling baseline lamba spike hone par thoda adapt ho jaata hai; bahut lambi outage ke liye fixed baseline ya
-  rolling median add karna better rahega.
-
-## Tests
 ```bash
-python tests/test_core.py   # parser/cleaning/detector/in-memory store (sirf pandas, numpy, scikit-learn chahiye)
-pytest -q                   # + API end-to-end test
+curl http://127.0.0.1:8000/alerts
 ```
+
+### Search Error Logs
+
+```bash
+curl "http://127.0.0.1:8000/logs/search?level=error&q=timeout&limit=5"
+```
+
+### View Error Trend Chart
+
+Open this URL in your browser:
+
+`http://127.0.0.1:8000/charts/error-trend.png`
+
+## Testing
+
+Run core tests:
+
+```bash
+python tests/test_core.py
+```
+
+Run API and end-to-end tests:
+
+```bash
+pytest -q
+```
+
+The core tests cover parsing, cleaning, detection, and the in-memory store. The API test suite additionally covers API-level behavior.
+
+## Design Considerations & Limitations
+
+- Duplicate log lines are preserved because repeated errors can indicate unusual system activity.
+- Duplicate file uploads are prevented using file hashing.
+- The expected log format is:
+
+```text
+YYYY-MM-DD HH:MM:SS [LEVEL] service: message ip=... status=...
+```
+
+- The parser uses regular expressions that can be modified in `app/parser.py`.
+- A rolling baseline may gradually adapt during prolonged anomalies. A fixed baseline or rolling median could improve detection of extended outages.
+
+## Future Improvements
+
+- Real-time log monitoring.
+- Interactive monitoring dashboard.
+- Advanced anomaly detection techniques.
+- Improved alert notifications.
+- More configurable detection thresholds.
+
+## Author
+
+**Ishan Garg**
+
+GitHub: [@igarg6630-design](https://github.com/igarg6630-design)
+
+---
+
+If you find this project useful, consider giving the repository a ⭐ on GitHub.
